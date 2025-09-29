@@ -799,6 +799,23 @@ main {
     margin-bottom: 20px;
 }
 
+/* Override for batch mode banner - ensure text is visible */
+.batch-mode-banner .auction-context {
+    background: transparent !important;
+    background-color: transparent !important;
+    color: white !important;
+    box-shadow: none !important;
+    padding: 0 !important;
+    margin-bottom: 0 !important;
+}
+
+.batch-mode-banner .auction-context *,
+.batch-mode-banner .auction-context strong {
+    color: white !important;
+    background: transparent !important;
+    background-color: transparent !important;
+}
+
 .auction-context h3 {
     color: #2c3e50;
     margin-bottom: 5px;

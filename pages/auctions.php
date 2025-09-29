@@ -68,9 +68,22 @@ if ($_POST) {
     }
 }
 
-// Handle delete
+// Handle delete (can come from POST or GET)
 if ($action === 'delete' && $id) {
     $result = $auction->delete($id);
+    if ($result['success']) {
+        setFlashMessage('Auction deleted successfully');
+    } else {
+        setFlashMessage(implode(', ', $result['errors']), 'error');
+    }
+    header('Location: auctions.php');
+    exit;
+}
+
+// Handle POST delete
+if ($_POST && isset($_POST['action']) && $_POST['action'] === 'delete' && isset($_POST['id'])) {
+    $delete_id = $_POST['id'];
+    $result = $auction->delete($delete_id);
     if ($result['success']) {
         setFlashMessage('Auction deleted successfully');
     } else {
@@ -151,8 +164,11 @@ include '../includes/header.php';
                             | <a href="reports.php?auction_id=<?php echo $auc['auction_id']; ?>">Reports</a>
                         <?php endif; ?>
                         <?php if ($auc['bid_count'] == 0): ?>
-                            | <a href="auctions.php?action=delete&id=<?php echo $auc['auction_id']; ?>" 
-                               onclick="return confirm('Delete this auction?')">Delete</a>
+                            | <form method="POST" style="display: inline;" onsubmit="return confirm('Delete this auction? This cannot be undone.')">
+                                <input type="hidden" name="action" value="delete">
+                                <input type="hidden" name="id" value="<?php echo $auc['auction_id']; ?>">
+                                <button type="submit" class="btn-link" style="color: #e74c3c;">Delete</button>
+                              </form>
                         <?php endif; ?>
                     </td>
                 </tr>

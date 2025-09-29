@@ -36,9 +36,22 @@ if ($_POST) {
     }
 }
 
-// Handle delete
+// Handle delete (can come from POST or GET)
 if ($action === 'delete' && $id) {
     $result = $bidder->delete($id);
+    if ($result['success']) {
+        setFlashMessage('Bidder deleted successfully');
+    } else {
+        setFlashMessage(implode(', ', $result['errors']), 'error');
+    }
+    header('Location: bidders.php');
+    exit;
+}
+
+// Handle POST delete
+if ($_POST && isset($_POST['action']) && $_POST['action'] === 'delete' && isset($_POST['id'])) {
+    $delete_id = $_POST['id'];
+    $result = $bidder->delete($delete_id);
     if ($result['success']) {
         setFlashMessage('Bidder deleted successfully');
     } else {
@@ -111,8 +124,11 @@ include '../includes/header.php';
                     <td><?php echo sanitize(trim($b['city'] . ', ' . $b['state'], ', ')); ?></td>
                     <td>
                         <a href="bidders.php?action=edit&id=<?php echo $b['bidder_id']; ?>">Edit</a> |
-                        <a href="bidders.php?action=delete&id=<?php echo $b['bidder_id']; ?>" 
-                           onclick="return confirm('Delete this bidder?')">Delete</a>
+                        <form method="POST" style="display: inline;" onsubmit="return confirm('Delete this bidder? This cannot be undone.')">
+                            <input type="hidden" name="action" value="delete">
+                            <input type="hidden" name="id" value="<?php echo $b['bidder_id']; ?>">
+                            <button type="submit" class="btn-link" style="color: #e74c3c;">Delete</button>
+                        </form>
                     </td>
                 </tr>
                 <?php endforeach; ?>

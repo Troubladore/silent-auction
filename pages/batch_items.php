@@ -29,7 +29,13 @@ if (!$current_auction) {
 // Handle form submissions
 if ($_POST) {
     if ($action === 'add_new' && isset($_POST['create_item'])) {
-        $result = $item->create($_POST);
+        // Extract only item fields for database insertion
+        $itemData = [
+            'item_name' => $_POST['item_name'] ?? '',
+            'item_description' => $_POST['item_description'] ?? '',
+            'item_quantity' => $_POST['item_quantity'] ?? 1
+        ];
+        $result = $item->create($itemData);
         if ($result['success']) {
             $item_id = $result['id'];
             
@@ -41,6 +47,10 @@ if ($_POST) {
                 // Check if "add another" was clicked
                 if (isset($_POST['add_another'])) {
                     header("Location: batch_items.php?auction_id=$auction_id&action=add_new");
+                    exit;
+                } else {
+                    // "Add & Finish" clicked - return to auction edit page
+                    header("Location: auctions.php?action=edit&id=$auction_id");
                     exit;
                 }
             } else {
@@ -60,6 +70,8 @@ if ($_POST) {
         }
         
         setFlashMessage("Added $added existing items to auction");
+        header("Location: auctions.php?action=edit&id=$auction_id");
+        exit;
     }
 }
 
@@ -212,7 +224,7 @@ include '../includes/header.php';
 <style>
 .batch-mode-banner {
     background: linear-gradient(135deg, #4CAF50, #45a049);
-    color: white;
+    color: white !important;
     padding: 20px;
     border-radius: 8px;
     margin-bottom: 30px;
@@ -224,10 +236,22 @@ include '../includes/header.php';
 .batch-mode-info h2 {
     margin: 0 0 10px 0;
     font-size: 24px;
+    color: white !important;
 }
 
-.auction-context {
-    font-size: 16px;
+.batch-mode-banner .auction-context {
+    font-size: 16px !important;
+    color: white !important;
+    background: transparent !important;
+    background-color: transparent !important;
+}
+
+.batch-mode-banner .auction-context,
+.batch-mode-banner .auction-context *,
+.batch-mode-banner .auction-context strong {
+    color: white !important;
+    background: transparent !important;
+    background-color: transparent !important;
 }
 
 .auction-meta {
@@ -235,6 +259,7 @@ include '../includes/header.php';
     font-size: 14px;
     opacity: 0.9;
     margin-top: 5px;
+    color: white !important;
 }
 
 .batch-mode-actions {

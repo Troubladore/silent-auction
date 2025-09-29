@@ -62,9 +62,22 @@ if ($_POST) {
     }
 }
 
-// Handle delete
+// Handle delete (can come from POST or GET)
 if ($action === 'delete' && $id) {
     $result = $item->delete($id);
+    if ($result['success']) {
+        setFlashMessage('Item deleted successfully');
+    } else {
+        setFlashMessage(implode(', ', $result['errors']), 'error');
+    }
+    header('Location: items.php');
+    exit;
+}
+
+// Handle POST delete
+if ($_POST && isset($_POST['action']) && $_POST['action'] === 'delete' && isset($_POST['id'])) {
+    $delete_id = $_POST['id'];
+    $result = $item->delete($delete_id);
     if ($result['success']) {
         setFlashMessage('Item deleted successfully');
     } else {
@@ -163,8 +176,11 @@ include '../includes/header.php';
                     <td><?php echo date('M j, Y', strtotime($i['created_at'])); ?></td>
                     <td>
                         <a href="items.php?action=edit&id=<?php echo $i['item_id']; ?>">Edit</a> |
-                        <a href="items.php?action=delete&id=<?php echo $i['item_id']; ?>" 
-                           onclick="return confirm('Delete this item?')">Delete</a>
+                        <form method="POST" style="display: inline;" onsubmit="return confirm('Delete this item? This cannot be undone.')">
+                            <input type="hidden" name="action" value="delete">
+                            <input type="hidden" name="id" value="<?php echo $i['item_id']; ?>">
+                            <button type="submit" class="btn-link" style="color: #e74c3c;">Delete</button>
+                        </form>
                     </td>
                 </tr>
                 <?php endforeach; ?>
