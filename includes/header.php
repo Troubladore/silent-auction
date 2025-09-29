@@ -11,13 +11,27 @@
         <div class="container">
             <h1><a href="/pages/index.php"><?php echo APP_NAME; ?></a></h1>
             <nav>
+                <?php
+                // Get current page for navigation highlighting
+                $current_page = basename($_SERVER['PHP_SELF']);
+                $nav_items = [
+                    'index.php' => 'Dashboard',
+                    'bidders.php' => 'Bidders', 
+                    'items.php' => 'Items',
+                    'auctions.php' => 'Auctions',
+                    'bid_entry.php' => 'Bid Entry',
+                    'reports.php' => 'Reports'
+                ];
+                ?>
                 <ul>
-                    <li><a href="/pages/index.php">Dashboard</a></li>
-                    <li><a href="/pages/bidders.php">Bidders</a></li>
-                    <li><a href="/pages/items.php">Items</a></li>
-                    <li><a href="/pages/auctions.php">Auctions</a></li>
-                    <li><a href="/pages/bid_entry.php" class="highlight">Bid Entry</a></li>
-                    <li><a href="/pages/reports.php">Reports</a></li>
+                    <?php foreach ($nav_items as $file => $title): ?>
+                        <li>
+                            <a href="/pages/<?php echo $file; ?>" 
+                               <?php if ($current_page === $file): ?>class="highlight"<?php endif; ?>>
+                                <?php echo $title; ?>
+                            </a>
+                        </li>
+                    <?php endforeach; ?>
                     <li><a href="/pages/logout.php">Logout</a></li>
                 </ul>
             </nav>

@@ -143,7 +143,7 @@ include '../includes/header.php';
                     <td><?php echo $auc['total_revenue'] ? formatCurrency($auc['total_revenue']) : '-'; ?></td>
                     <td>
                         <a href="auctions.php?action=edit&id=<?php echo $auc['auction_id']; ?>">Edit</a>
-                        | <a href="items.php?batch_auction=<?php echo $auc['auction_id']; ?>" class="batch-mode-link">Batch Add Items</a>
+                        | <a href="batch_items.php?auction_id=<?php echo $auc['auction_id']; ?>" class="batch-mode-link">Batch Add Items</a>
                         <?php if ($auc['item_count'] > 0 && $auc['status'] !== 'completed'): ?>
                             | <a href="bid_entry.php?auction_id=<?php echo $auc['auction_id']; ?>">Enter Bids</a>
                         <?php endif; ?>
