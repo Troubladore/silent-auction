@@ -1,0 +1,33 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<phpunit xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:noNamespaceSchemaLocation="https://schema.phpunit.de/10.0/phpunit.xsd"
+         bootstrap="tests/bootstrap.php"
+         colors="true">
+    <testsuites>
+        <testsuite name="Unit">
+            <directory>tests/Unit</directory>
+        </testsuite>
+        <testsuite name="Integration">
+            <directory>tests/Integration</directory>
+        </testsuite>
+        <testsuite name="API">
+            <directory>tests/API</directory>
+        </testsuite>
+    </testsuites>
+    
+    <source>
+        <include>
+            <directory>classes</directory>
+            <directory>api</directory>
+        </include>
+        <exclude>
+            <directory>config</directory>
+            <directory>vendor</directory>
+        </exclude>
+    </source>
+    
+    <php>
+        <!-- Using SQLite in-memory database for testing -->
+        <env name="TEST_MODE" value="true"/>
+    </php>
+</phpunit>
