@@ -66,13 +66,41 @@ CREATE TABLE winning_bids (
     FOREIGN KEY (auction_id) REFERENCES auctions(auction_id),
     FOREIGN KEY (item_id) REFERENCES items(item_id),
     FOREIGN KEY (bidder_id) REFERENCES bidders(bidder_id),
-    UNIQUE KEY unique_auction_item_bid (auction_id, item_id),
+    UNIQUE KEY unique_auction_item_bidder (auction_id, item_id, bidder_id),
     INDEX idx_auction (auction_id),
     INDEX idx_bidder (bidder_id),
     INDEX idx_item (item_id)
 );
 
+-- Bidder payments table (for clerking/checkout)
+CREATE TABLE bidder_payments (
+    payment_id INT AUTO_INCREMENT PRIMARY KEY,
+    bidder_id INT NOT NULL,
+    auction_id INT NOT NULL,
+    amount_paid DECIMAL(10,2) NOT NULL,
+    payment_method ENUM('cash', 'check') NOT NULL,
+    check_number VARCHAR(50) NULL,
+    payment_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    notes TEXT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (bidder_id) REFERENCES bidders(bidder_id) ON DELETE CASCADE,
+    FOREIGN KEY (auction_id) REFERENCES auctions(auction_id) ON DELETE CASCADE,
+    UNIQUE KEY unique_bidder_auction (bidder_id, auction_id),
+    INDEX idx_auction (auction_id),
+    INDEX idx_bidder (bidder_id),
+    INDEX idx_payment_date (payment_date)
+);
+
 -- Sample data for testing
+-- Insert special "No Bid" bidder with ID 0 (must be done before other bidders)
+-- Temporarily disable auto increment to allow explicit ID 0
+SET @@sql_mode = '';
+INSERT INTO bidders (bidder_id, first_name, last_name, phone, email) VALUES
+(0, 'No', 'Bid', '', '');
+
+-- Reset auto increment to start at 1 for regular bidders
+ALTER TABLE bidders AUTO_INCREMENT = 1;
+
 INSERT INTO bidders (first_name, last_name, phone, email) VALUES
 ('John', 'Smith', '555-123-4567', 'john@email.com'),
 ('Jane', 'Doe', '555-987-6543', 'jane@email.com'),

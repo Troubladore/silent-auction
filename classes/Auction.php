@@ -68,8 +68,17 @@ class Auction {
             return ['success' => false, 'errors' => ['Invalid date format']];
         }
         
+        // Only allow specific auction fields to be updated
+        $allowedFields = ['auction_date', 'auction_description', 'status'];
+        $updateData = [];
+        foreach ($allowedFields as $field) {
+            if (isset($data[$field])) {
+                $updateData[$field] = $data[$field];
+            }
+        }
+        
         try {
-            $this->db->update('auctions', $data, 'auction_id = :id', ['id' => $id]);
+            $this->db->update('auctions', $updateData, 'auction_id = :id', ['id' => $id]);
             return ['success' => true];
         } catch (Exception $e) {
             return ['success' => false, 'errors' => ['Database error occurred']];
@@ -106,24 +115,65 @@ class Auction {
     }
     
     public function getItemsForBidEntry($auction_id) {
+        // Get items with aggregated winner information for multiple winners
         $sql = 'SELECT i.item_id, i.item_name, i.item_description, i.item_quantity,
-                       wb.bidder_id, wb.winning_price, wb.quantity_won,
-                       CONCAT(b.first_name, " ", b.last_name) as winner_name
+                       GROUP_CONCAT(wb.bidder_id ORDER BY wb.created_at) as bidder_ids,
+                       GROUP_CONCAT(wb.winning_price ORDER BY wb.created_at) as winning_prices,
+                       GROUP_CONCAT(wb.quantity_won ORDER BY wb.created_at) as quantities_won,
+                       GROUP_CONCAT(CONCAT(b.first_name, " ", b.last_name) ORDER BY wb.created_at SEPARATOR "|") as winner_names,
+                       SUM(wb.quantity_won) as total_quantity_won,
+                       COUNT(wb.bid_id) as winner_count,
+                       CASE 
+                           WHEN COUNT(wb.bid_id) = 0 THEN NULL
+                           WHEN COUNT(wb.bid_id) = 1 AND MIN(wb.bidder_id) = 0 THEN 0
+                           ELSE MIN(wb.bidder_id)
+                       END as bidder_id,
+                       CASE 
+                           WHEN COUNT(wb.bid_id) = 0 THEN NULL
+                           WHEN COUNT(wb.bid_id) = 1 AND MIN(wb.bidder_id) = 0 THEN 0
+                           ELSE AVG(wb.winning_price)
+                       END as winning_price,
+                       CASE 
+                           WHEN COUNT(wb.bid_id) = 0 THEN 1
+                           ELSE SUM(wb.quantity_won)
+                       END as quantity_won,
+                       CASE 
+                           WHEN COUNT(wb.bid_id) = 0 THEN NULL
+                           WHEN COUNT(wb.bid_id) = 1 AND MIN(wb.bidder_id) = 0 THEN "No Bid"
+                           WHEN COUNT(wb.bid_id) = 1 THEN MIN(CONCAT(b.first_name, " ", b.last_name))
+                           ELSE CONCAT(COUNT(wb.bid_id), " Winners")
+                       END as winner_name
                 FROM auction_items ai
                 JOIN items i ON ai.item_id = i.item_id
                 LEFT JOIN winning_bids wb ON ai.item_id = wb.item_id AND ai.auction_id = wb.auction_id
                 LEFT JOIN bidders b ON wb.bidder_id = b.bidder_id
                 WHERE ai.auction_id = :auction_id
+                GROUP BY i.item_id, i.item_name, i.item_description, i.item_quantity
                 ORDER BY i.item_id';
         
         return $this->db->fetchAll($sql, ['auction_id' => $auction_id]);
     }
     
-    public function saveBid($auction_id, $item_id, $bidder_id, $winning_price, $quantity_won = 1) {
+    public function saveBid($auction_id, $item_id, $bidder_id, $winning_price, $quantity_won = 1, $no_bid = false) {
         try {
-            // Check if bid already exists
-            $existing = $this->db->fetch('SELECT bid_id FROM winning_bids WHERE auction_id = :auction_id AND item_id = :item_id', 
-                                       ['auction_id' => $auction_id, 'item_id' => $item_id]);
+            // For no-bid entries, use bidder ID 0 and set winning_price to 0
+            if ($no_bid) {
+                // For no-bid, first remove any existing winners for this item
+                $this->db->delete('winning_bids', 'auction_id = :auction_id AND item_id = :item_id', 
+                                 ['auction_id' => $auction_id, 'item_id' => $item_id]);
+                
+                $bidder_id = 0;
+                $winning_price = 0;
+                $quantity_won = 0;
+            } else {
+                // For real bids, remove any no-bid entries first
+                $this->db->delete('winning_bids', 'auction_id = :auction_id AND item_id = :item_id AND bidder_id = 0', 
+                                 ['auction_id' => $auction_id, 'item_id' => $item_id]);
+            }
+            
+            // Check if this specific bidder already has a bid for this item
+            $existing = $this->db->fetch('SELECT bid_id FROM winning_bids WHERE auction_id = :auction_id AND item_id = :item_id AND bidder_id = :bidder_id', 
+                                       ['auction_id' => $auction_id, 'item_id' => $item_id, 'bidder_id' => $bidder_id]);
             
             $data = [
                 'auction_id' => $auction_id,
@@ -134,10 +184,10 @@ class Auction {
             ];
             
             if ($existing) {
-                // Update existing bid
+                // Update existing bid for this specific bidder
                 $this->db->update('winning_bids', $data, 'bid_id = :bid_id', ['bid_id' => $existing['bid_id']]);
             } else {
-                // Create new bid
+                // Create new bid (allows multiple winners per item)
                 $this->db->insert('winning_bids', $data);
             }
             

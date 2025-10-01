@@ -1,179 +1,105 @@
 # Silent Auction Management System
 
-A simple, fast, and efficient web application for managing silent auctions. Built with PHP and MySQL, designed for single-maintainer use with 2-3 concurrent users.
-
-## Features
-
-- **Bidder Management**: Track bidders with contact information and addresses
-- **Item Management**: Manage auction items with descriptions and quantities
-- **Auction Management**: Create auctions and associate items
-- **Fast Bid Entry**: Speed-optimized interface for post-auction winning bid entry
-- **Comprehensive Reporting**: Payment summaries, item results, and export capabilities
-- **Batch Mode**: Quickly add multiple items to specific auctions
+A streamlined PHP/MySQL web application designed for rapid post-auction bid entry and settlement. Built for small organizations running silent auctions with 2-3 concurrent users on a trusted local network.
 
 ## Quick Start
 
-### Requirements
+**Prerequisites:** PHP 8.1+, MySQL 8.0+, Apache/Nginx web server
 
-- PHP 8.1+ with PDO MySQL extension
-- MySQL 8.0+ or MariaDB 10.6+
-- Web server (Apache/Nginx) or local development environment (XAMPP/WAMP/MAMP)
+```bash
+# 1. Clone and setup
+git clone <repository-url> auction-system
+cd auction-system
 
-### Installation
+# 2. Configure database
+cp config/database.php.example config/database.php
+# Edit database credentials in config/database.php
 
-1. **Clone or download** this repository to your web server directory
-2. **Create database** and import the setup script:
-   ```sql
-   mysql -u root -p < setup/install.sql
-   ```
-3. **Configure database connection** in `config/database.php`:
-   ```php
-   define('DB_HOST', 'localhost');
-   define('DB_NAME', 'silent_auction');
-   define('DB_USER', 'your_username');
-   define('DB_PASS', 'your_password');
-   ```
-4. **Set admin password** in `config/config.php`:
-   ```php
-   define('ADMIN_PASSWORD', 'your_secure_password');
-   ```
-5. **Access the application** in your web browser
-6. **Login** with your configured password
+# 3. Initialize database
+mysql -u root -p < setup/install.sql
 
-### Default Login
+# 4. Configure web server to point to this directory
 
-- **URL**: `http://your-domain/login.php`
-- **Default Password**: `auction123` (change this immediately!)
-
-## Usage Guide
-
-### Basic Workflow
-
-1. **Add Bidders**: Enter bidder information at any time
-2. **Create Items**: Add items that can be reused across auctions
-3. **Create Auction**: Set up auction with date and description
-4. **Associate Items**: Add items to the auction
-5. **Conduct Auction**: (physical/external process)
-6. **Enter Winning Bids**: Use fast entry interface for quick data entry
-7. **Generate Reports**: Create payment summaries and checkout receipts
-
-### Fast Bid Entry
-
-The bid entry interface is optimized for speed:
-
-- **Keyboard Navigation**: Tab through fields, Enter to save
-- **Real-time Lookup**: Type bidder ID or name for instant search
-- **Progress Tracking**: Visual progress bar and item counting
-- **Quick Navigation**: Jump to any item instantly
-- **Batch Processing**: Process all auction items systematically
-
-**Keyboard Shortcuts:**
-- `Enter` - Save current bid and move to next field/item
-- `Tab` - Move to next field
-- `F5` - Skip current item (no winner)
-- `Escape` - Clear current form
-- Click item numbers to jump to specific items
-
-### Batch Mode (Items)
-
-When adding multiple items for the same auction:
-
-1. Go to Items page
-2. Select auction from "Batch Mode" dropdown
-3. Add items - they'll automatically be added to the selected auction
-4. Use "Add & Add Another" for rapid entry
-
-### Reports
-
-Generate various reports for auction results:
-
-- **Summary**: Overview with statistics and top performers
-- **Bidder Payments**: Individual bidder totals and contact info
-- **Item Results**: Complete item-by-item breakdown
-- **Unsold Items**: Items that need follow-up
-
-Export options:
-- **CSV**: For importing into accounting software
-- **Print**: Optimized checkout receipts for bidders
-
-## File Structure
-
-```
-auction_system/
-├── config/              # Configuration files
-├── includes/            # Common includes (header, footer, functions)
-├── classes/             # PHP classes (Database, Bidder, Item, etc.)
-├── pages/               # Main application pages
-├── api/                 # AJAX endpoints
-├── assets/              # CSS and JavaScript files
-├── setup/               # Database setup scripts
-├── login.php            # Login page
-└── README.md           # This file
+# 5. Login with default admin password (change in config/config.php)
 ```
 
-## Security Notes
+**📖 [Complete Installation Guide](docs/installation.md)** - Detailed setup for local network deployment
 
-- Change the default password immediately after installation
-- The system uses prepared statements to prevent SQL injection
-- Session-based authentication for simple access control
-- Input validation and sanitization throughout
-- No remote access features - designed for local/trusted network use
+## Core Workflow
 
-## Customization
+1. **Pre-Auction:** Register bidders, catalog items, create auction, assign items
+2. **Post-Auction:** Speed-optimized bid entry (sub-second response, keyboard-driven)
+3. **Settlement:** Process payments, print receipts, generate reports
 
-### Database Configuration
-Edit `config/database.php` for your database settings.
+## Key Features
 
-### Application Settings
-Edit `config/config.php` for app name, version, and authentication.
+- ⚡ **Speed-Optimized Bid Entry** - Keyboard-driven with real-time lookup (<500ms)
+- 💰 **Payment Tracking** - Record cash/check payments with integrated receipts
+- 📊 **Comprehensive Reports** - Bidder details, item results, payment summaries
+- 🔍 **Live Search Filtering** - Dynamic bidder search on reports
+- 📄 **Print-Ready Receipts** - Clean checkout receipts with auction info
+- 🔒 **Session-Based Auth** - Simple single-admin security model
 
-### Styling
-Modify `assets/css/style.css` for visual customization.
+## Documentation
 
-### Adding Features
-The modular class structure makes it easy to extend functionality.
+### Getting Started
+- **[Installation Guide](docs/installation.md)** - Complete setup for local network
+- **[User Guide](docs/user-guide.md)** - Step-by-step workflow for running an auction
+- **[Quick Reference](docs/quick-reference.md)** - Common tasks and shortcuts
 
-## Troubleshooting
+### Technical Documentation
+- **[Directory Structure](docs/directory-structure.md)** - Codebase organization
+- **[Features Overview](docs/features.md)** - Detailed feature descriptions
+- **[Database Schema](docs/database-schema.md)** - Table structure and relationships
+- **[API Reference](docs/api-reference.md)** - Endpoint documentation
+- **[Technical Details](docs/technical.md)** - Architecture and design decisions
 
-### Database Connection Issues
-1. Verify database credentials in `config/database.php`
-2. Ensure MySQL/MariaDB is running
-3. Check that the database exists and tables are created
+### Maintenance & Development
+- **[Deployment Guide](docs/deployment.md)** - Production deployment checklist
+- **[Maintenance Guide](docs/maintenance.md)** - Backup, updates, troubleshooting
+- **[Developer Notes](docs/developer-notes.md)** - For Claude Code and maintainers
 
-### Login Problems
-1. Verify password in `config/config.php`
-2. Check that sessions are working (session directory writable)
+## System Requirements
 
-### Permission Issues
-1. Ensure web server can read all files
-2. Check PHP error logs for specific issues
+- **PHP:** 8.1 or higher
+- **Database:** MySQL 8.0+ or MariaDB 10.6+
+- **Web Server:** Apache 2.4+ or Nginx 1.18+
+- **Browser:** Modern browser (Chrome, Firefox, Safari, Edge - last 2 versions)
+- **Network:** Local/trusted network environment
 
-### Performance Issues
-1. Add database indexes if handling large datasets
-2. Consider enabling PHP OPcache for better performance
+## Design Philosophy
 
-## Technical Specifications
+This system prioritizes **speed and simplicity** for small organizations:
 
-- **Backend**: PHP 8.1+ with PDO
-- **Database**: MySQL 8.0+ / MariaDB 10.6+
-- **Frontend**: HTML5, CSS3, Vanilla JavaScript
-- **Browser Support**: Modern browsers (Chrome, Firefox, Safari, Edge)
-- **Mobile**: Responsive design for tablet use
+- **Single-purpose:** Post-auction settlement (not live bidding)
+- **Speed-critical:** Bid entry optimized for rapid data collection
+- **Minimal complexity:** No frameworks, simple maintenance
+- **Trusted environment:** Appropriate security for local networks
+- **Single maintainer:** Designed for one technically capable admin
 
-## Support
+## Technology Stack
 
-This is a simple application designed for basic auction management. For issues:
+- **Backend:** PHP 8.1+ (vanilla, no frameworks)
+- **Database:** MySQL 8.0+ with prepared statements
+- **Frontend:** Vanilla JavaScript, responsive CSS
+- **Dependencies:** None (core PHP extensions only)
 
-1. Check the troubleshooting section
-2. Review PHP error logs
-3. Verify database connectivity
-4. Ensure all required files are present
+## Project Status
+
+**Version:** 1.0
+**Status:** Production Ready
+**Maintenance:** Stable - enhance cautiously
+
+## Support & Contribution
+
+- **Issues:** Report via GitHub Issues
+- **Documentation:** All docs in `/docs` folder
+- **Updates:** Check CHANGELOG.md for version history
 
 ## License
 
-This project is provided as-is for silent auction management. Modify as needed for your specific requirements.
+[Include your license information here]
 
 ---
 
-**Version**: 1.0  
-**Last Updated**: 2024
+**Need Help?** Start with the [User Guide](docs/user-guide.md) or [Installation Guide](docs/installation.md).

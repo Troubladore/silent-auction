@@ -87,13 +87,13 @@ include '../includes/header.php';
     <?php else: ?>
         <!-- Report Navigation -->
         <div class="report-nav">
-            <a href="reports.php?auction_id=<?php echo $auction_id; ?>&type=summary" 
+            <a href="reports.php?auction_id=<?php echo $auction_id; ?>&type=summary"
                class="btn <?php echo $report_type === 'summary' ? 'btn-primary' : 'btn-outline'; ?>">Summary</a>
-            <a href="reports.php?auction_id=<?php echo $auction_id; ?>&type=bidder_payments" 
-               class="btn <?php echo $report_type === 'bidder_payments' ? 'btn-primary' : 'btn-outline'; ?>">Bidder Payments</a>
-            <a href="reports.php?auction_id=<?php echo $auction_id; ?>&type=item_results" 
+            <a href="reports.php?auction_id=<?php echo $auction_id; ?>&type=bidder_payments"
+               class="btn <?php echo $report_type === 'bidder_payments' ? 'btn-primary' : 'btn-outline'; ?>">Bidder Details</a>
+            <a href="reports.php?auction_id=<?php echo $auction_id; ?>&type=item_results"
                class="btn <?php echo $report_type === 'item_results' ? 'btn-primary' : 'btn-outline'; ?>">Item Results</a>
-            <a href="reports.php?auction_id=<?php echo $auction_id; ?>&type=unsold" 
+            <a href="reports.php?auction_id=<?php echo $auction_id; ?>&type=unsold"
                class="btn <?php echo $report_type === 'unsold' ? 'btn-primary' : 'btn-outline'; ?>">Unsold Items</a>
         </div>
         
@@ -160,26 +160,46 @@ include '../includes/header.php';
             <?php $payments = $report->getBidderPayments($auction_id); ?>
             <div class="report-bidder-payments">
                 <div class="report-header">
-                    <h3>Bidder Payment Summary</h3>
+                    <h3>Bidder Details & Payment Summary</h3>
                     <a href="reports.php?auction_id=<?php echo $auction_id; ?>&export=bidder_payments" class="btn btn-secondary">Export CSV</a>
                 </div>
-                
+
                 <?php if (empty($payments)): ?>
                     <p>No winning bids recorded yet.</p>
                 <?php else: ?>
-                    <table class="data-table">
+                    <div class="bidder-search">
+                        <input type="text"
+                               id="bidder-filter"
+                               placeholder="Search bidders by name, ID, phone, or email..."
+                               autocomplete="off">
+                        <span id="filter-count"><?php echo count($payments); ?> bidder<?php echo count($payments) != 1 ? 's' : ''; ?></span>
+                    </div>
+
+                    <table class="data-table" id="bidder-payments-table">
                         <thead>
                             <tr>
                                 <th>Bidder</th>
                                 <th>Contact</th>
                                 <th>Items Won</th>
-                                <th>Total Payment</th>
+                                <th>Amount Bid</th>
+                                <th>Amount Paid</th>
+                                <th>Status</th>
                                 <th>Actions</th>
                             </tr>
                         </thead>
                         <tbody>
                             <?php foreach ($payments as $payment): ?>
-                            <tr>
+                            <?php
+                                $amount_bid = $payment['amount_bid'];
+                                $amount_paid = $payment['amount_paid'];
+                                $is_paid = $amount_paid >= $amount_bid;
+                                $payment_status = $is_paid ? 'paid' : 'unpaid';
+                            ?>
+                            <tr class="payment-status-<?php echo $payment_status; ?> bidder-row"
+                                data-name="<?php echo strtolower($payment['first_name'] . ' ' . $payment['last_name']); ?>"
+                                data-id="<?php echo $payment['bidder_id']; ?>"
+                                data-phone="<?php echo preg_replace('/[^0-9]/', '', $payment['phone']); ?>"
+                                data-email="<?php echo strtolower($payment['email']); ?>">
                                 <td>
                                     <strong><?php echo sanitize($payment['first_name'] . ' ' . $payment['last_name']); ?></strong>
                                     <br><small>ID: <?php echo $payment['bidder_id']; ?></small>
@@ -193,27 +213,118 @@ include '../includes/header.php';
                                     <?php endif; ?>
                                 </td>
                                 <td><?php echo $payment['items_won']; ?></td>
-                                <td class="amount"><?php echo formatCurrency($payment['total_payment']); ?></td>
+                                <td class="amount"><?php echo formatCurrency($amount_bid); ?></td>
+                                <td class="amount <?php echo $is_paid ? 'paid' : 'unpaid'; ?>">
+                                    <?php echo formatCurrency($amount_paid); ?>
+                                </td>
                                 <td>
-                                    <a href="reports.php?auction_id=<?php echo $auction_id; ?>&type=bidder_detail&bidder_id=<?php echo $payment['bidder_id']; ?>">View Details</a>
+                                    <?php if ($is_paid): ?>
+                                        <span class="status-badge status-paid">✓ Paid</span>
+                                        <?php if ($payment['payment_method']): ?>
+                                            <br><small><?php echo ucfirst($payment['payment_method']); ?>
+                                            <?php if ($payment['check_number']): ?>
+                                                #<?php echo sanitize($payment['check_number']); ?>
+                                            <?php endif; ?>
+                                            </small>
+                                        <?php endif; ?>
+                                    <?php else: ?>
+                                        <span class="status-badge status-unpaid">Unpaid</span>
+                                    <?php endif; ?>
+                                </td>
+                                <td>
+                                    <a href="reports.php?auction_id=<?php echo $auction_id; ?>&type=bidder_detail&bidder_id=<?php echo $payment['bidder_id']; ?>" class="btn btn-small">
+                                        <?php echo $is_paid ? 'View Details' : 'Checkout'; ?>
+                                    </a>
                                 </td>
                             </tr>
                             <?php endforeach; ?>
                         </tbody>
                     </table>
+
+                    <script>
+                    // Bidder search/filter functionality
+                    document.addEventListener('DOMContentLoaded', function() {
+                        const filterInput = document.getElementById('bidder-filter');
+                        const filterCount = document.getElementById('filter-count');
+                        const bidderRows = document.querySelectorAll('.bidder-row');
+                        const totalCount = bidderRows.length;
+
+                        if (filterInput) {
+                            // Focus on filter input for quick access
+                            filterInput.focus();
+
+                            filterInput.addEventListener('input', function() {
+                                const searchTerm = this.value.toLowerCase().trim();
+                                let visibleCount = 0;
+
+                                bidderRows.forEach(row => {
+                                    if (searchTerm === '') {
+                                        // Show all rows when search is empty
+                                        row.style.display = '';
+                                        visibleCount++;
+                                    } else {
+                                        // Check if search term matches name, ID, phone, or email
+                                        const name = row.getAttribute('data-name') || '';
+                                        const id = row.getAttribute('data-id') || '';
+                                        const phone = row.getAttribute('data-phone') || '';
+                                        const email = row.getAttribute('data-email') || '';
+
+                                        const matches = name.includes(searchTerm) ||
+                                                       id.includes(searchTerm) ||
+                                                       phone.includes(searchTerm) ||
+                                                       email.includes(searchTerm);
+
+                                        if (matches) {
+                                            row.style.display = '';
+                                            visibleCount++;
+                                        } else {
+                                            row.style.display = 'none';
+                                        }
+                                    }
+                                });
+
+                                // Update count display
+                                if (searchTerm === '') {
+                                    filterCount.textContent = totalCount + ' bidder' + (totalCount !== 1 ? 's' : '');
+                                } else {
+                                    filterCount.textContent = visibleCount + ' of ' + totalCount + ' bidder' + (totalCount !== 1 ? 's' : '');
+                                }
+                            });
+
+                            // Clear filter with Escape key
+                            filterInput.addEventListener('keydown', function(e) {
+                                if (e.key === 'Escape') {
+                                    this.value = '';
+                                    this.dispatchEvent(new Event('input'));
+                                }
+                            });
+                        }
+                    });
+                    </script>
                 <?php endif; ?>
             </div>
-            
+
         <?php elseif ($report_type === 'bidder_detail' && $bidder_id): ?>
-            <?php $details = $report->getBidderDetails($auction_id, $bidder_id); ?>
+            <?php
+                $details = $report->getBidderDetails($auction_id, $bidder_id);
+                $payment_info = $report->getBidderPaymentInfo($auction_id, $bidder_id);
+            ?>
             <div class="bidder-detail">
                 <?php if (empty($details)): ?>
                     <p>No details found for this bidder.</p>
                 <?php else: ?>
                     <?php $bidder_info = $details[0]; ?>
                     <div class="bidder-checkout">
-                        <h3>Bidder Checkout - <?php echo sanitize($bidder_info['first_name'] . ' ' . $bidder_info['last_name']); ?></h3>
-                        
+                        <div class="checkout-title-row">
+                            <h3>Bidder Checkout - <?php echo sanitize($bidder_info['first_name'] . ' ' . $bidder_info['last_name']); ?></h3>
+                            <?php if ($selected_auction): ?>
+                            <div class="auction-info">
+                                <strong><?php echo sanitize($selected_auction['auction_description']); ?></strong><br>
+                                <span><?php echo date('F j, Y', strtotime($selected_auction['auction_date'])); ?></span>
+                            </div>
+                            <?php endif; ?>
+                        </div>
+
                         <div class="checkout-header">
                             <div class="bidder-contact">
                                 <p><strong>Bidder ID:</strong> <?php echo $bidder_info['bidder_id']; ?></p>
@@ -225,7 +336,7 @@ include '../includes/header.php';
                                 <?php endif; ?>
                             </div>
                         </div>
-                        
+
                         <table class="checkout-table">
                             <thead>
                                 <tr>
@@ -254,17 +365,170 @@ include '../includes/header.php';
                             </tbody>
                             <tfoot>
                                 <tr class="total-row">
-                                    <th colspan="4">TOTAL PAYMENT DUE:</th>
+                                    <th colspan="4">TOTAL AMOUNT DUE:</th>
                                     <th class="amount"><?php echo formatCurrency($grand_total); ?></th>
                                 </tr>
                             </tfoot>
                         </table>
-                        
+
+                        <!-- Payment Entry Form -->
+                        <div class="payment-entry">
+                            <h4>Record Payment</h4>
+                            <?php if ($payment_info): ?>
+                                <div class="payment-existing">
+                                    <p class="status-message success">
+                                        ✓ Payment recorded: <?php echo formatCurrency($payment_info['amount_paid']); ?>
+                                        via <?php echo ucfirst($payment_info['payment_method']); ?>
+                                        <?php if ($payment_info['check_number']): ?>
+                                            (Check #<?php echo sanitize($payment_info['check_number']); ?>)
+                                        <?php endif; ?>
+                                        on <?php echo date('M j, Y g:ia', strtotime($payment_info['payment_date'])); ?>
+                                    </p>
+                                    <p><small>Use the form below to update the payment if needed.</small></p>
+                                </div>
+                            <?php endif; ?>
+
+                            <form id="payment-form" class="payment-form">
+                                <input type="hidden" name="bidder_id" value="<?php echo $bidder_info['bidder_id']; ?>">
+                                <input type="hidden" name="auction_id" value="<?php echo $auction_id; ?>">
+
+                                <div class="form-group">
+                                    <label for="amount_paid">Amount Paid *</label>
+                                    <input type="number"
+                                           id="amount_paid"
+                                           name="amount_paid"
+                                           step="0.01"
+                                           min="0"
+                                           value="<?php echo $payment_info ? $payment_info['amount_paid'] : $grand_total; ?>"
+                                           required>
+                                    <small>Total due: <?php echo formatCurrency($grand_total); ?></small>
+                                </div>
+
+                                <div class="form-group">
+                                    <label>Payment Method *</label>
+                                    <div class="radio-group">
+                                        <label class="radio-label">
+                                            <input type="radio"
+                                                   name="payment_method"
+                                                   value="cash"
+                                                   <?php echo (!$payment_info || $payment_info['payment_method'] === 'cash') ? 'checked' : ''; ?>
+                                                   required>
+                                            Cash
+                                        </label>
+                                        <label class="radio-label">
+                                            <input type="radio"
+                                                   name="payment_method"
+                                                   value="check"
+                                                   <?php echo ($payment_info && $payment_info['payment_method'] === 'check') ? 'checked' : ''; ?>
+                                                   required>
+                                            Check
+                                        </label>
+                                    </div>
+                                </div>
+
+                                <div class="form-group" id="check-number-group" style="<?php echo (!$payment_info || $payment_info['payment_method'] !== 'check') ? 'display:none' : ''; ?>">
+                                    <label for="check_number">Check Number *</label>
+                                    <input type="text"
+                                           id="check_number"
+                                           name="check_number"
+                                           value="<?php echo $payment_info ? sanitize($payment_info['check_number']) : ''; ?>"
+                                           placeholder="Enter check number">
+                                </div>
+
+                                <div class="form-group">
+                                    <label for="notes">Notes (optional)</label>
+                                    <textarea id="notes"
+                                              name="notes"
+                                              rows="2"
+                                              placeholder="Any additional notes..."><?php echo $payment_info ? sanitize($payment_info['notes']) : ''; ?></textarea>
+                                </div>
+
+                                <div class="form-actions">
+                                    <button type="submit" class="btn btn-success">
+                                        <?php echo $payment_info ? 'Update Payment' : 'Record Payment'; ?>
+                                    </button>
+                                    <span id="payment-status"></span>
+                                </div>
+                            </form>
+                        </div>
+
                         <div class="checkout-actions">
                             <button onclick="window.print()" class="btn btn-primary">Print Receipt</button>
-                            <a href="reports.php?auction_id=<?php echo $auction_id; ?>&type=bidder_payments" class="btn btn-secondary">← Back to Payments</a>
+                            <a href="reports.php?auction_id=<?php echo $auction_id; ?>&type=bidder_payments" class="btn btn-secondary">← Back to Bidder Details</a>
                         </div>
                     </div>
+
+                    <script>
+                    // Payment form handling
+                    document.addEventListener('DOMContentLoaded', function() {
+                        const paymentForm = document.getElementById('payment-form');
+                        const paymentMethodRadios = document.querySelectorAll('input[name="payment_method"]');
+                        const checkNumberGroup = document.getElementById('check-number-group');
+                        const checkNumberInput = document.getElementById('check_number');
+
+                        // Show/hide check number field based on payment method
+                        paymentMethodRadios.forEach(radio => {
+                            radio.addEventListener('change', function() {
+                                if (this.value === 'check') {
+                                    checkNumberGroup.style.display = 'block';
+                                    checkNumberInput.required = true;
+                                } else {
+                                    checkNumberGroup.style.display = 'none';
+                                    checkNumberInput.required = false;
+                                }
+                            });
+                        });
+
+                        // Handle form submission
+                        paymentForm.addEventListener('submit', async function(e) {
+                            e.preventDefault();
+
+                            const formData = new FormData(paymentForm);
+                            const data = {};
+                            formData.forEach((value, key) => {
+                                data[key] = value;
+                            });
+
+                            const statusEl = document.getElementById('payment-status');
+                            const submitBtn = paymentForm.querySelector('button[type="submit"]');
+
+                            try {
+                                submitBtn.disabled = true;
+                                statusEl.textContent = 'Saving...';
+                                statusEl.className = 'status-message';
+
+                                const response = await fetch('../api/save_payment.php', {
+                                    method: 'POST',
+                                    headers: {
+                                        'Content-Type': 'application/json'
+                                    },
+                                    body: JSON.stringify(data),
+                                    credentials: 'same-origin'
+                                });
+
+                                const result = await response.json();
+
+                                if (result.error) {
+                                    statusEl.textContent = 'Error: ' + result.error;
+                                    statusEl.className = 'status-message error';
+                                } else {
+                                    statusEl.textContent = '✓ Payment saved successfully!';
+                                    statusEl.className = 'status-message success';
+
+                                    // Reload page after short delay to show updated payment info
+                                    setTimeout(() => {
+                                        window.location.reload();
+                                    }, 1500);
+                                }
+                            } catch (error) {
+                                statusEl.textContent = 'Error: ' + error.message;
+                                statusEl.className = 'status-message error';
+                            } finally {
+                                submitBtn.disabled = false;
+                            }
+                        });
+                    });
+                    </script>
                 <?php endif; ?>
             </div>
             

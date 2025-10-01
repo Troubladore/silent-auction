@@ -30,14 +30,17 @@ class Report {
         $sql = 'SELECT b.bidder_id, b.first_name, b.last_name, b.phone, b.email,
                        b.address1, b.address2, b.city, b.state, b.postal_code,
                        COUNT(wb.bid_id) as items_won,
-                       SUM(wb.winning_price * wb.quantity_won) as total_payment
+                       SUM(wb.winning_price * wb.quantity_won) as amount_bid,
+                       COALESCE(bp.amount_paid, 0) as amount_paid,
+                       bp.payment_method, bp.check_number, bp.payment_date
                 FROM bidders b
                 JOIN winning_bids wb ON b.bidder_id = wb.bidder_id
-                WHERE wb.auction_id = :auction_id
-                GROUP BY b.bidder_id
+                LEFT JOIN bidder_payments bp ON b.bidder_id = bp.bidder_id AND bp.auction_id = :auction_id1
+                WHERE wb.auction_id = :auction_id2
+                GROUP BY b.bidder_id, bp.payment_id, bp.payment_method, bp.check_number, bp.payment_date
                 ORDER BY b.last_name, b.first_name';
-        
-        return $this->db->fetchAll($sql, ['auction_id' => $auction_id]);
+
+        return $this->db->fetchAll($sql, ['auction_id1' => $auction_id, 'auction_id2' => $auction_id]);
     }
     
     public function getBidderDetails($auction_id, $bidder_id) {
@@ -122,7 +125,7 @@ class Report {
     }
     
     public function getTopPerformers($auction_id, $limit = 10) {
-        $sql = 'SELECT i.item_name, wb.winning_price, 
+        $sql = 'SELECT i.item_name, wb.winning_price,
                        CONCAT(b.first_name, " ", b.last_name) as winner_name
                 FROM winning_bids wb
                 JOIN items i ON wb.item_id = i.item_id
@@ -130,8 +133,54 @@ class Report {
                 WHERE wb.auction_id = :auction_id
                 ORDER BY wb.winning_price DESC
                 LIMIT ' . $limit;
-        
+
         return $this->db->fetchAll($sql, ['auction_id' => $auction_id]);
+    }
+
+    public function getBidderPaymentInfo($auction_id, $bidder_id) {
+        $sql = 'SELECT bp.payment_id, bp.bidder_id, bp.auction_id, bp.amount_paid,
+                       bp.payment_method, bp.check_number, bp.payment_date, bp.notes
+                FROM bidder_payments bp
+                WHERE bp.auction_id = :auction_id AND bp.bidder_id = :bidder_id';
+
+        return $this->db->fetch($sql, ['auction_id' => $auction_id, 'bidder_id' => $bidder_id]);
+    }
+
+    public function savePayment($bidder_id, $auction_id, $amount_paid, $payment_method, $check_number = null, $notes = null) {
+        // If payment method is cash, ensure check_number is null
+        if ($payment_method === 'cash') {
+            $check_number = null;
+        }
+
+        // Check if payment already exists
+        $existing = $this->getBidderPaymentInfo($auction_id, $bidder_id);
+
+        if ($existing) {
+            // Update existing payment
+            $this->db->update(
+                'bidder_payments',
+                [
+                    'amount_paid' => $amount_paid,
+                    'payment_method' => $payment_method,
+                    'check_number' => $check_number,
+                    'notes' => $notes,
+                    'payment_date' => date('Y-m-d H:i:s')
+                ],
+                'payment_id = :payment_id',
+                ['payment_id' => $existing['payment_id']]
+            );
+            return $existing['payment_id'];
+        } else {
+            // Insert new payment
+            return $this->db->insert('bidder_payments', [
+                'bidder_id' => $bidder_id,
+                'auction_id' => $auction_id,
+                'amount_paid' => $amount_paid,
+                'payment_method' => $payment_method,
+                'check_number' => $check_number,
+                'notes' => $notes
+            ]);
+        }
     }
 }
 ?>

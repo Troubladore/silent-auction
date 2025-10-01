@@ -31,34 +31,45 @@ class TestCleanup {
             // We identify test records by common test patterns
             
             // Clean up winning_bids first (foreign key dependencies)
+            // NOTE: We keep auction 80 data as it's used by tests
             await conn.execute(`
-                DELETE FROM winning_bids 
+                DELETE FROM winning_bids
                 WHERE auction_id IN (
-                    SELECT auction_id FROM auctions 
-                    WHERE auction_description LIKE '%Test%' 
-                    OR auction_description LIKE '%Browser%'
-                    OR auction_description LIKE '%Playwright%'
+                    SELECT auction_id FROM auctions
+                    WHERE (
+                        auction_description LIKE '%Test%'
+                        OR auction_description LIKE '%Browser%'
+                        OR auction_description LIKE '%Playwright%'
+                    )
+                    AND auction_id != 80
                 )
             `);
-            
+
             // Clean up auction_items
+            // NOTE: We keep auction 80 items as they're used by tests
             await conn.execute(`
-                DELETE FROM auction_items 
+                DELETE FROM auction_items
                 WHERE auction_id IN (
-                    SELECT auction_id FROM auctions 
-                    WHERE auction_description LIKE '%Test%' 
-                    OR auction_description LIKE '%Browser%'
-                    OR auction_description LIKE '%Playwright%'
+                    SELECT auction_id FROM auctions
+                    WHERE (
+                        auction_description LIKE '%Test%'
+                        OR auction_description LIKE '%Browser%'
+                        OR auction_description LIKE '%Playwright%'
+                    )
+                    AND auction_id != 80
                 )
             `);
             
             // Clean up test auctions
+            // NOTE: We keep auction 80 ('Community Benefit Auction 2024') as it's used by tests
             await conn.execute(`
-                DELETE FROM auctions 
-                WHERE auction_description LIKE '%Test%' 
-                OR auction_description LIKE '%Browser%'
-                OR auction_description LIKE '%Playwright%'
-                OR auction_description = 'Community Benefit Auction 2024'
+                DELETE FROM auctions
+                WHERE (
+                    auction_description LIKE '%Test%'
+                    OR auction_description LIKE '%Browser%'
+                    OR auction_description LIKE '%Playwright%'
+                )
+                AND auction_id != 80
             `);
             
             // Clean up test items

@@ -32,7 +32,7 @@ include '../includes/header.php';
     <div class="page-header">
         <h2>Fast Bid Entry</h2>
         <div class="entry-help">
-            <strong>Shortcuts:</strong> Enter = Save Bid | Tab = Next Field | F5 = Skip Item | Esc = Clear Form
+            <strong>Shortcuts:</strong> Enter = Save Bid | F6 = No Bid | Tab = Next Field | F5 = Skip Item | Esc = Clear Form
         </div>
     </div>
     
@@ -86,16 +86,15 @@ include '../includes/header.php';
                     
                     <div class="form-row">
                         <div class="form-group">
-                            <label for="bidder-id">Bidder ID:</label>
-                            <input type="number" id="bidder-id" name="bidder_id" min="1" autocomplete="off">
-                            <div id="bidder-lookup" class="lookup-result"></div>
+                            <label for="item-id">Item (ID or Name):</label>
+                            <input type="text" id="item-id" name="item_id" placeholder="Enter item ID or name..." autocomplete="off">
+                            <div id="item-lookup" class="lookup-result"></div>
                         </div>
                         
                         <div class="form-group">
-                            <label for="item-display">Item:</label>
-                            <div id="item-display" class="item-display">
-                                <div id="item-info">Select an item...</div>
-                            </div>
+                            <label for="bidder-id">Bidder (ID or Name):</label>
+                            <input type="text" id="bidder-id" name="bidder_id" placeholder="Enter bidder ID or name..." autocomplete="off">
+                            <div id="bidder-lookup" class="lookup-result"></div>
                         </div>
                     </div>
                     
@@ -120,6 +119,9 @@ include '../includes/header.php';
                         <button type="submit" id="save-bid" class="btn btn-primary btn-large">
                             SAVE BID (Enter)
                         </button>
+                        <button type="button" id="no-bid" class="btn btn-warning">
+                            NO BID (F6)
+                        </button>
                         <button type="button" id="skip-item" class="btn btn-secondary">
                             SKIP ITEM (F5)
                         </button>
@@ -130,25 +132,62 @@ include '../includes/header.php';
                 </form>
             </div>
             
-            <div class="item-navigation">
-                <div class="nav-buttons">
-                    <button type="button" id="prev-item" class="btn btn-outline">← Previous</button>
-                    <button type="button" id="next-item" class="btn btn-outline">Next →</button>
+            <div class="item-status-section">
+                <h4>Auction Items Status <span id="completion-stats">(0 of <?php echo count($auction_items); ?> completed)</span></h4>
+                <div class="status-legend">
+                    <span class="legend-item"><span class="status-indicator pending"></span> Not Entered</span>
+                    <span class="legend-item"><span class="status-indicator completed"></span> Has Bid</span>
+                    <span class="legend-item"><span class="status-indicator no-bid"></span> No Bid</span>
+                    <span class="legend-item"><span class="status-indicator multiple"></span> Multiple Winners</span>
                 </div>
-                
-                <div class="item-list">
-                    <h4>Items (click to jump):</h4>
-                    <div id="item-buttons">
-                        <?php foreach ($auction_items as $index => $item): ?>
-                        <button type="button" class="item-btn <?php echo $item['winning_price'] ? 'has-bid' : ''; ?>" 
-                                data-index="<?php echo $index; ?>" data-item-id="<?php echo $item['item_id']; ?>">
-                            #<?php echo $item['item_id']; ?>
-                            <?php if ($item['winning_price']): ?>
-                                <span class="bid-indicator">✓</span>
+                <div id="item-status-grid" class="item-status-grid">
+                    <?php foreach ($auction_items as $item): ?>
+                    <?php 
+                        $hasMultipleWinners = ($item['winner_count'] ?? 0) > 1;
+                        $isNoBid = $item['bidder_id'] == 0;
+                        $hasBid = $item['winning_price'] && $item['bidder_id'] && !$isNoBid;
+                        
+                        $cardClass = $hasBid ? 'has-bid' : 'no-bid';
+                        $statusClass = $isNoBid ? 'no-bid' : ($hasBid ? ($hasMultipleWinners ? 'multiple' : 'completed') : 'pending');
+                    ?>
+                    <div class="item-status-card <?php echo $cardClass; ?>" 
+                         data-item-id="<?php echo $item['item_id']; ?>"
+                         title="Click to edit this item's bid">
+                        <div class="item-header">
+                            <span class="item-id">#<?php echo $item['item_id']; ?></span>
+                            <span class="status-indicator <?php echo $statusClass; ?>"></span>
+                        </div>
+                        <div class="item-name"><?php echo sanitize($item['item_name']); ?></div>
+                        
+                        <?php if ($isNoBid): ?>
+                        <div class="no-bid-info">
+                            <span class="no-bid-text">No Bid</span>
+                        </div>
+                        
+                        <?php elseif ($hasBid): ?>
+                        <div class="bid-info">
+                            <div class="winner" <?php if ($hasMultipleWinners): ?>style="font-weight: bold;"<?php endif; ?>>
+                                <?php echo sanitize($item['winner_name'] ?: 'ID ' . $item['bidder_id']); ?>
+                            </div>
+                            <div class="price">
+                                <?php if ($hasMultipleWinners): ?>
+                                    Avg: $<?php echo number_format($item['winning_price'], 2); ?>
+                                <?php else: ?>
+                                    $<?php echo number_format($item['winning_price'], 2); ?>
+                                <?php endif; ?>
+                            </div>
+                            <?php if ($item['quantity_won'] > 1): ?>
+                                <div class="quantity">Qty: <?php echo $item['quantity_won']; ?></div>
                             <?php endif; ?>
-                        </button>
-                        <?php endforeach; ?>
+                        </div>
+                        
+                        <?php else: ?>
+                        <div class="no-bid-info">
+                            <span class="quantity-available"><?php echo $item['item_quantity']; ?> available</span>
+                        </div>
+                        <?php endif; ?>
                     </div>
+                    <?php endforeach; ?>
                 </div>
             </div>
             
@@ -162,10 +201,53 @@ include '../includes/header.php';
         
         <!-- Item data for JavaScript -->
         <script>
-        const auctionItems = <?php echo json_encode($auction_items); ?>;
+        window.auctionItems = <?php echo json_encode($auction_items); ?>;
+        console.log('DEBUG: auction_id = <?php echo $auction_id; ?>');
+        console.log('DEBUG: selected_auction = ', <?php echo json_encode($selected_auction); ?>);
+        console.log('DEBUG: auction_items = ', window.auctionItems);
+        console.log('DEBUG: auction_items length = ', window.auctionItems ? window.auctionItems.length : 'NULL');
         </script>
         
         <a href="bid_entry.php" class="btn btn-secondary back-link">← Select Different Auction</a>
+        
+        <!-- Debug Panel (hidden by default) -->
+        <div id="debug-panel" style="display: none; margin-top: 20px; padding: 15px; background: #f8f9fa; border: 1px solid #ddd; border-radius: 4px;">
+            <h4>Debug Information</h4>
+            <button type="button" onclick="window.bidEntryInstance?.downloadActivityLog()">Download Activity Log</button>
+            <button type="button" onclick="toggleDebugInfo()">Toggle Debug Info</button>
+            <div id="debug-info" style="margin-top: 10px; font-family: monospace; font-size: 12px; max-height: 200px; overflow-y: auto; background: white; padding: 10px; border: 1px solid #ccc;"></div>
+        </div>
+        
+        <!-- Debug Panel Toggle (always visible) -->
+        <button type="button" onclick="toggleDebugPanel()" style="position: fixed; bottom: 10px; right: 10px; background: #007cba; color: white; border: none; border-radius: 4px; padding: 5px 10px; font-size: 11px; z-index: 1001;">
+            Debug
+        </button>
+        
+        <script>
+        function toggleDebugPanel() {
+            const panel = document.getElementById('debug-panel');
+            panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+        }
+        
+        function toggleDebugInfo() {
+            const info = document.getElementById('debug-info');
+            if (window.bidEntryInstance) {
+                const log = window.bidEntryInstance.getActivityLog();
+                info.innerHTML = '<pre>' + JSON.stringify(log, null, 2) + '</pre>';
+            }
+        }
+        
+        // Auto-refresh debug info every 2 seconds when visible
+        setInterval(() => {
+            const info = document.getElementById('debug-info');
+            const panel = document.getElementById('debug-panel');
+            if (panel.style.display === 'block' && info.innerHTML && window.bidEntryInstance) {
+                const log = window.bidEntryInstance.getActivityLog().slice(-10); // Last 10 entries
+                info.innerHTML = '<pre>' + JSON.stringify(log, null, 2) + '</pre>';
+            }
+        }, 2000);
+        </script>
+        
     <?php endif; ?>
 </div>
 
